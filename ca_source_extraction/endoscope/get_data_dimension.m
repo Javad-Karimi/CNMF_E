@@ -34,14 +34,15 @@ elseif strcmpi(ext,'.hdf5') || strcmpi(ext,'.h5');
     temp = squeeze(info.GroupHierarchy.Datasets.Dims);
     dims = temp([2, 3, 5]);
 elseif strcmpi(ext, '.avi')
-    try
-        obj = audiovideo.mmreader(path_to_file);
-    catch
-        obj = VideoReader(path_to_file);
-    end
-    frame_rate = obj.FrameRate;
-    total = obj.Duration;
-    numFrames = total*frame_rate;
+    % try
+    %     obj = audiovideo.mmreader(path_to_file);
+    % catch
+    obj = VideoReader(path_to_file);
+    % end
+    % frame_rate = obj.FrameRate;
+    % total = obj.Duration;
+    % numFrames = total*frame_rate;
+    numFrames = obj.NumFrames;
     
     sizx = obj.Width;
     sizy = obj.Height;
