@@ -1,4 +1,6 @@
 *.mat
+*.asv
+*.code-workspace
 cvx/
 *.avi
 *.m~
