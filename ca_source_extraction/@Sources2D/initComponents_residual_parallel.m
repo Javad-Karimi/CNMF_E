@@ -88,6 +88,13 @@ end
 % no centering of the raw video
 % options.center_psf = false;
 
+% parameters for detrending the data before the initialization.
+if isfield(obj.options, 'nk') % number of knots for creating spline basis
+    nk = obj.options.nk;
+else
+    nk = 1;
+end
+detrend_method = obj.options.detrend_method;
 %% prepare for the variables for computing the background.
 bg_model = obj.options.background_model;
 bg_ssub = obj.options.bg_ssub;
@@ -196,7 +203,13 @@ if use_parallel
         end
         [nr_block, nc_block, ~] = size(Ypatch);
         
-        Ypatch = double(reshape(Ypatch, [], T)) - A_patch*C_patch;
+        Ypatch = double(reshape(Ypatch, [], T));
+
+        if nk>1
+            Ypatch = detrend_data(Ypatch, nk, detrend_method); % detrend data
+        end
+
+        Ypatch = Ypatch - A_patch*C_patch;
         % get background
         if strcmpi(bg_model, 'ring')
             W_ring = W{mpatch};
@@ -294,6 +307,10 @@ else
         end
         [nr_block, nc_block, ~] = size(Ypatch);
         
+        if nk>1
+            Ypatch = detrend_data(Ypatch, nk, detrend_method); % detrend data
+        end
+
         Ypatch = double(reshape(Ypatch, [], T)) - A_patch*C_patch;
         % get background
         if strcmpi(bg_model, 'ring')
@@ -351,17 +368,22 @@ for mpatch=1:(nr_patch*nc_patch)
     r1 = tmp_block(2);
     c0 = tmp_block(3);
     c1 = tmp_block(4);
-    %         ind_patch = true(r1-r0+1, c1-c0+1);
-    %         ind_patch((tmp_patch(1):tmp_patch(2))-r0+1, (tmp_patch(3):tmp_patch(4))-c0+1) = false;
-    %
+    ind_patch = true(r1-r0+1, c1-c0+1);
+    ind_patch((tmp_patch(1):tmp_patch(2))-r0+1, (tmp_patch(3):tmp_patch(4))-c0+1) = false;
+    
     % unpack results
     tmp_results = results{mpatch};
     if isempty(tmp_results)
         continue;
     end
-    
+
+    % keep neurons whose seed pixel is within the patch
+    ctr = round( tmp_results.center);
+    ind= sub2ind(size(ind_patch), ctr(:, 1), ctr(:,2));
+    tmp_ind = (~ind_patch(ind));
+
     tmp_Ain = tmp_results.Ain;
-    tmp_ind = (sum(tmp_Ain, 1)>0);
+    % tmp_ind = (sum(tmp_Ain, 1)>0);
     tmp_Ain = tmp_Ain(:, tmp_ind);
     tmp_Cin = tmp_results.Cin(tmp_ind,:);
     tmp_Cin_raw = tmp_results.Cin_raw(tmp_ind,:);
@@ -403,7 +425,7 @@ if options.deconv_flag
     obj.S = [obj.S; sparse(Sin)];
     obj.P.kernel_pars = [obj.P.kernel_pars; kernel_pars];
 else
-    obj.S = [obj.S; zeros(size(obj.C))];
+    obj.S = [obj.S; zeros(size(Cin))];
 end
 K = size(Ain, 2);
 k_ids = obj.P.k_ids;
