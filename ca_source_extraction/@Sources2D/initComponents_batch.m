@@ -44,25 +44,29 @@ for mbatch=1:nbatches
         % initialization neurons from nothing
         neuron_k.initComponents_parallel(K, neuron_k.frame_range, save_avi, use_parallel);
         
-        W_init = neuron_k.W;
-        b_init = neuron_k.b;
-        f_init = neuron_k.f;
-        b0_init = neuron_k.b0;
+        % W_init = neuron_k.W;
+        % b_init = neuron_k.b;
+        % f_init = neuron_k.f;
+        % b0_init = neuron_k.b0;
     else
         % copy previous initialization of neuron shape
         neuron_k.A = obj.A;
         neuron_k.P.k_ids = obj.P.k_ids;
         neuron_k.W = obj.W;
         neuron_k.b = obj.b;
+        neuron_k.f = obj.f;
+        neuron_k.b0 = obj.b0;
         neuron_k.ids = obj.ids;
         neuron_k.tags = obj.tags;
         
-        neuron_k.W = W_init;
-        neuron_k.b = b_init;
-        neuron_k.f = f_init;
-        neuron_k.b0 = b0_init;
+        % neuron_k.W = W_init;
+        % neuron_k.b = b_init;
+        % neuron_k.f = f_init;
+        % neuron_k.b0 = b0_init;
         
-        neuron_k.initTemporal(neuron_k.frame_range, use_parallel);
+        % neuron_k.initTemporal(neuron_k.frame_range, use_parallel);
+        SFP = full(obj.A);
+        neuron_k.initComponents_parallel_with_initial_A(SFP, false);
     end
     % update background
     neuron_k.update_background_parallel(use_parallel);
