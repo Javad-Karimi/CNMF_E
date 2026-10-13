@@ -30,7 +30,7 @@ for mbatch=1:nbatches
     A = A + bsxfun(@times, neuron_k.A, cc(mbatch, :));    
 end
 
-obj.A = bsxfun(@times, A, 1./sum(cc, 1)); 
+obj.A = sparse(bsxfun(@times, A, 1./sum(cc, 1))); 
 obj.post_process_spatial(); 
 
 %% spread the same A to all batches and update temporal components
