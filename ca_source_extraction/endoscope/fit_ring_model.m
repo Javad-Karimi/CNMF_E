@@ -103,7 +103,7 @@ if with_projection
         tmpXX = X*X';
         tmpXy = X*y';
         
-        w = (tmpXX+eye(size(tmpXX))*sum(diag(tmpXX))*(1e-5)) \ tmpXy;
+        w = (tmpXX+eye(size(tmpXX))*sum(diag(tmpXX))*(1e-5)) \ tmpXy; % solving the regression using Ridge Regression or Tikhonov regularization
         W(m, ind_ring) = w(1:(end-1))+(1e-100); % add a small value to keep those nonzero elements still nonzero
     end
 else
