@@ -289,7 +289,12 @@ end
 aa(aa==0) = 1;
 obj.C_raw = bsxfun(@times, C_new, 1./aa);
 fprintf('Deconvolve and denoise all temporal traces again...\n');
-obj.deconvTemporal();
+%% TODO: if deconv_flag
+if obj.options.deconv_flag
+    obj.deconvTemporal();
+else
+    obj.C = obj.C_raw;
+end
 fprintf('Done!\n');
 
 %% save the results to log
