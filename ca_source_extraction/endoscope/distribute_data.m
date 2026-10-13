@@ -1,9 +1,12 @@
 function [mat_data, dims, folder_analysis] = distribute_data(nam, patch_dims, ...
-    w_overlap, memory_size_per_patch, memory_size_to_use, dir_output, filter_kernel)
+    w_overlap, memory_size_per_patch, memory_size_to_use, dir_output, filter_kernel, varargin)
 % divide the field of view into multiple small patches and save the data
 % into these small patches individually. There are overlaps between these
 % patches.
-
+% variable input arguments: 
+%  tform: a transformation matrix for registering the data.
+%  Rfixed: the reference frame for the registered data.
+%  shifts: the shifts for the motion correction (NORMCORRE shifts).
 %% default values
 if ~exist(nam, 'file')
     error('File does not exist!');
@@ -29,8 +32,21 @@ else
     filter_data = true; 
 end
 
+if ~isempty(varargin)
+    % tform = varargin{1};
+    % Rfixed = varargin{2};
+    shifts = varargin{1};
+else
+    % tform = [];
+    % Rfixed = [];
+    shifts = [];
+end
 %% get the data dimension and determine the best way of distributing data
 dims = get_data_dimension(file_name);
+if ~isempty(shifts)
+    ssub = 2; % spatial downsampling factor
+    dims(1:2) = ceil(dims(1:2)/ssub);
+end
 d1 = dims(1); d2 = dims(2); T = dims(3);
 
 fprintf('\nThe data has %d X %d pixels X %d frames. \nLoading all data (double precision) requires %.3f GB RAM\n\n', d1, d2, T, prod(dims)/(2^27));
@@ -142,6 +158,9 @@ mat_data.dims = dims;
 
 % pre-allocate matrices for saving the video data 
 img = smod_bigread2(file_name,1,1);
+if ~isempty(shifts)
+    img = imresize(img, ceil(size(img, 1:2)/ssub), 'box');
+end
 default_value = 0*img(1);
 temp = whos('img');
 mat_data.dtype = temp.class;
@@ -183,9 +202,28 @@ while t_start<T
     Y = smod_bigread2(file_name, t_start+1, num2read);
     Y(isnan(Y)) = 0;
     temp = Y(1); 
+    % motion correction
+    if ~isempty(shifts)
+        fprintf('Motion correcting frames %d to %d...\n', t_start+1, t_start+num2read);
+        shifts_current = shifts(t_start+1:t_start+num2read);
+        % bound = 0;
+        bound = round(d1/2); % half of the image size
+        Y = imresize(Y, [d1, d2], 'box');
+
+        options_nr = NoRMCorreSetParms('d1', d1-bound, 'd2', d2-bound, 'bin_width', 50, ...
+            'grid_size',[128, 128]*2,'mot_uf',4,'correct_bidir',false, ...
+            'overlap_pre',50,'overlap_post',50,'max_shift',120, 'print_msg', false);
+        parfor frame_counter = 1:size(Y, 3)   
+            % Y(:,:,frame_counter) = cast(imwarp(Y(:,:,frame_counter), tform, "OutputView", Rfixed), 'like', temp);
+            Y(:,:,frame_counter) = cast(apply_shifts(squeeze(Y(:,:,frame_counter)), shifts_current(frame_counter), options_nr, ...
+                                                        round(bound/2), round(bound/2)), 'like', temp);
+        end
+    end
+
     if filter_data
         Y = cast(imfilter(double(Y), filter_kernel, 'replicate'), 'like', temp); 
     end 
+
     for m=1:nr_block
         r0 = block_idx_r(m);
         r1 = block_idx_r(m+1);
