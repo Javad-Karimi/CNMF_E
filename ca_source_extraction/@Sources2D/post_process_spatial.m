@@ -1,11 +1,15 @@
 function A_ = post_process_spatial(obj, A_new)
 % postprocess spatial components of all neurons
 
+% TODO: figure out why d1 and d2 are emoty in obj.options.d1/d2. This cause
+% an error in A_new = obj.reshape(obj.A, 2); That is why do the reshape
+% manually here and modify the following if-statement for now. 
 if ~exist('A_new', 'var')
-    A_new = obj.reshape(obj.A, 2);
+    % A_new = obj.reshape(obj.A, 2);
+    A_new = full(obj.A);
 end
 
-%             A_new = threshold_components(A_new, obj.options);
+% A_new = threshold_components(A_new, obj.options);
 spatial_constraints = obj.options.spatial_constraints;
 circular_shape = spatial_constraints.circular;
 connected_shape = spatial_constraints.connected;
