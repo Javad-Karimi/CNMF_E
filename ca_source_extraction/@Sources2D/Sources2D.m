@@ -118,7 +118,7 @@ classdef Sources2D < handle
         %% select multiple datasets
         function nams = select_multiple_files(obj, nams)
             if ~isempty(nams)
-                nams = unique(nams);
+                %nams = unique(nams);
                 ind_keep = true(size(nams));
                 for m=1:length(nams)
                     if ~exist(nams{m}, 'file')
@@ -211,7 +211,16 @@ classdef Sources2D < handle
             Ypatch(isnan(Ypatch)) = 0;
         end
         %% distribute data and be ready to run source extraction
-        function getReady(obj, pars_envs, filter_kernel)
+        function getReady(obj, pars_envs, filter_kernel, varargin)
+            if ~isempty(varargin)
+                % tform = varargin{1};
+                % Rfixed = varargin{2};
+                shifts = varargin{1};
+            else
+                % tform = [];
+                % Rfixed = [];
+                shifts = [];
+            end
             % data and its extension
             if iscell(obj.file)
                 nam = obj.file{1};
@@ -236,9 +245,18 @@ classdef Sources2D < handle
             w_overlap = obj.options.ring_radius;
             
             % distribute data
-            [data, dims, obj.P.folder_analysis] = distribute_data(nam,...
-                patch_dims, w_overlap, memory_size_per_patch, memory_size_to_use,...
-                [], filter_kernel);
+            if ~isempty(shifts)
+                [data, dims, obj.P.folder_analysis] = distribute_data(nam,...
+                    patch_dims, w_overlap, memory_size_per_patch, memory_size_to_use,...
+                    [], filter_kernel, shifts);
+            else
+                [data, dims, obj.P.folder_analysis] = distribute_data(nam,...
+                    patch_dims, w_overlap, memory_size_per_patch, memory_size_to_use,...
+                    [], filter_kernel);
+            end
+            % [data, dims, obj.P.folder_analysis] = distribute_data(nam,...
+            %     patch_dims, w_overlap, memory_size_per_patch, memory_size_to_use,...
+            %     [], filter_kernel);
             obj.P.mat_data = data;
             obj.P.mat_file = data.Properties.Source;
             obj.updateParams('d1', dims(1), 'd2', dims(2));
@@ -265,7 +283,17 @@ classdef Sources2D < handle
         end
         
         %% distribute data and be ready to run batch mode source extraction
-        function getReady_batch(obj, pars_envs, log_folder)
+        function getReady_batch(obj, pars_envs, log_folder, varargin)
+            if ~isempty(varargin)
+                tforms = varargin{1};
+                Rfixed = varargin{2};
+                reference_session_id = varargin{3};
+            else
+                tforms = [];
+                Rfixed = [];
+                reference_session_id = [];
+            end
+
             %% parameters for scaling things
             if ~exist('pars_envs', 'var') || isempty(pars_envs)
                 pars_envs = struct('memory_size_to_use', 4, ...   % GB, memory space you allow to use in MATLAB
@@ -280,7 +308,8 @@ classdef Sources2D < handle
                 obj.P.log_folder = log_folder;
             end
             %% distribute all files
-            nams = unique(obj.file);
+            %nams = unique(obj.file);
+            nams = obj.file;
             obj.file = nams;
             % pre-allocate spaces for saving results of multiple patches
             batches_ = cell(100, 1);
@@ -288,13 +317,22 @@ classdef Sources2D < handle
             numFrames = zeros(100,1);
             
             k_batch = 0;
-            for m=1:length(nams)
+            for m = 1:length(nams)
                 neuron = obj.copy();
                 neuron.file = nams{m};
-                neuron.getReady(pars_envs);
-                if m==1
+                if m == 1
                     obj.options = neuron.options;
                 end
+
+                if ~isempty(tforms) & m == reference_session_id
+                    neuron.getReady(pars_envs);
+                elseif ~isempty(tforms) & m ~= reference_session_id 
+                    neuron.getReady(pars_envs, [], tforms{m}, Rfixed);
+                elseif isempty(tforms) 
+                    neuron.getReady(pars_envs);
+                end
+                % neuron.getReady(pars_envs);
+
                 T = neuron.P.numFrames;
                 if isempty(batch_frames)
                     batch_frames = T;
@@ -391,11 +429,11 @@ classdef Sources2D < handle
         %% initialize neurons using patch method
         % for 1P and 2P data, CNMF and CNMF-E
         [center, Cn, PNR] = initComponents_parallel(obj, K, frame_range, save_avi, use_parallel, use_prev)
-        
+        [center, Cn, PNR] = initComponents_parallel_with_initial_A(obj, SFP, varargin);
         %% initialize neurons for multiple batches
         % for 1P and 2P data, CNMF and CNMF-E
         [center, Cn, PNR] = initComponents_batch(obj, K, frame_range, save_avi, use_parallel)
-        
+        [center, Cn, PNR] = initComponents_batch_with_initial_A(obj, K, save_avi, use_parallel, include_residual, SFP);
         %% fast initialization for microendoscopic data
         [center, Cn, pnr] = initComponents_endoscope(obj, Y, K, patch_sz, debug_on, save_avi);
         
