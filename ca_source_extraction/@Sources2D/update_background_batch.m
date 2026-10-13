@@ -7,6 +7,7 @@ function update_background_batch(obj, use_parallel)
 %% Author: Pengcheng Zhou, Columbia University, 2017
 %% email: zhoupc1988@gmail.com
 
+merge_thr_spatial = [0.8, 0.4, -inf];
 %% update spatial components for all batches 
 nbatches = length(obj.batches); 
 
@@ -18,7 +19,15 @@ for mbatch=1:nbatches
 
     % update background
     neuron_k.update_background_parallel(use_parallel); 
-    
+
+    % % merge/remove SFPs
+    % neuron_k.merge_neurons_dist_corr();
+    % neuron_k.merge_high_corr([], merge_thr_spatial);
+    % neuron_k.remove_false_positives();
+
     batch_k.neuron = neuron_k; 
     obj.batches{mbatch} = batch_k; 
+
+
+    % obj.A = neuron_k.A;
 end
